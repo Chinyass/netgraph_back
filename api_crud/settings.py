@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'django_filters',
     'authentication',
     'movies',
+    'netgraph',
+    'gpon'
 ]
 
 SITE_ID = 1
