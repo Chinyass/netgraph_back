@@ -4,6 +4,7 @@ import { CreateUserQueryParams } from "../types/query-params";
 import { User } from "../types/response";
 
 export function getUsers(request: Request, response: Response) {
+    //TODO
     response.send([])
 }
 
