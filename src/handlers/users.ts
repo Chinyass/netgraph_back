@@ -17,6 +17,6 @@ export function createUser(request: Request<{}, {}, CreateUserDto, CreateUserQue
     response.status(201).send({
         id: 1,
         email: 'chinya@tvsi.ru',
-        username: 'chingis' 
+        username: 'chingis'
     })
 }
