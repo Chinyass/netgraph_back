@@ -16,5 +16,5 @@ app.listen(PORT, async () => {
     await database_client.$connect()
     
     console.log(`Running on port ${PORT}`)
-    
+
 })

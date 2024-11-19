@@ -1,6 +1,7 @@
 import express from 'express'
 import usersRouter from './routes/users'
 import authRouter from './routes/auth'
+import nodesRouter from './routes/nodes'
 import cors from 'cors'
 import coockieParser from 'cookie-parser'
 
@@ -15,6 +16,7 @@ export function createApp() {
 
     //Routers
     app.use('/api/auth', authRouter)
+    app.use('/api/nodes', nodesRouter)
     app.use("/api/users", usersRouter)
     
     return app
