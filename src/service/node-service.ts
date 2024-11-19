@@ -30,7 +30,7 @@ class NodeService {
                 throw new Error("Node not found")
             }
 
-            throw new Error(`Failed to fetch node: ${errorMessage}`)
+            throw new Error(`Failed to fetch node`)
         }
     }
 
@@ -45,19 +45,19 @@ class NodeService {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'){
                 throw new Error("Node with this IP already exists")
             }
-            throw new Error(`Failed to create node: ${errorMessage}`)
+            throw new Error(`Failed to create node`)
 
         }
     }
     async CreateNodes(nodeData: CreateNodeDto[]){
         try {
-            const newNodes = await prisma.$transaction(nodeData.map(data => prisma.node.create({ data })));
+            const newNodes = await prisma.$transaction(nodeData.map(data => prisma.node.create({ data: data })));
             return newNodes
         
         } catch (error: any) {
             console.error("Error creating nodes:", error);
             const errorMessage = error.message || String(error);
-            throw new Error(`Failed to create nodes: ${errorMessage}`);
+            throw new Error(`Failed to create nodes `);
         }
     }
 
