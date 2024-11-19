@@ -9,7 +9,8 @@ export async function getNodes(req: Request<{}, any, any, { limit?: string; offs
         const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
 
         const nodes = await NodeService.getAllNodes(take, skip);
-
+        const total_count = await NodeService.getCountNodes()
+        res.setHeader('X-Total-Count', total_count.toString());
         res.json(nodes);
     } catch (error: any) {
         console.error("Error fetching nodes:", error);

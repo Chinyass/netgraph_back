@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 class NodeService {
     async getAllNodes(take: number = 100, skip: number = 0) {
-        try{
+        try {
 
             const nodes = await prisma.node.findMany({
                 take,
@@ -13,6 +13,15 @@ class NodeService {
             })
             return nodes
 
+        } catch (error) {
+            console.log("Error fetching nodes")
+            throw new Error("Failed to fetch nodes")
+        }
+    }
+    async getCountNodes() {
+        try {
+            const count = await prisma.node.count()
+            return count
         } catch (error) {
             console.log("Error fetching nodes")
             throw new Error("Failed to fetch nodes")
