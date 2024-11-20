@@ -10,8 +10,7 @@ export async function getNodes(req: Request<{}, any, any, { limit?: string; offs
 
         const nodes = await NodeService.getAllNodes(take, skip);
         const total_count = await NodeService.getCountNodes()
-        res.setHeader('X-Total-Count', total_count.toString());
-        res.json(nodes);
+        res.json({ nodes, total_count });
     } catch (error: any) {
         console.error("Error fetching nodes:", error);
         res.status(500).json({ error: 'Failed to fetch nodes' });
