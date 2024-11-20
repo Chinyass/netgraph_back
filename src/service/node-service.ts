@@ -4,24 +4,49 @@ import { CreateNodeDto } from '../dtos/CreateNode.dto';
 const prisma = new PrismaClient();
 
 class NodeService {
-    async getAllNodes(take: number = 100, skip: number = 0) {
+    async getAllNodes(take: number = 100, skip: number = 0, search?: string, searchField?: string, strict?: boolean) {
         try {
+            const whereClause: any = {};
+
+            if (search && searchField) {
+                if (strict) {
+                  whereClause[searchField] = search; // Точное совпадение, если strict=true
+                } else {
+                  whereClause[searchField] = {
+                    contains: search,
+                  }; // Поиск вхождения, если strict=false
+                }
+              }
 
             const nodes = await prisma.node.findMany({
+                where: whereClause,
                 take,
                 skip,
             })
+
             return nodes
 
         } catch (error) {
-            console.log("Error fetching nodes")
+            console.log("Error fetching nodes", error)
             throw new Error("Failed to fetch nodes")
         }
     }
-    async getCountNodes() {
+    async getCountNodes(search?: string, searchField?: string, strict?: boolean) {
         try {
-            const count = await prisma.node.count()
-            return count
+            const whereClause: any = {};
+            
+            if (search && searchField) {
+                if (strict) {
+                  whereClause[searchField] = search; // Точное совпадение, если strict=true
+                } else {
+                  whereClause[searchField] = {
+                    contains: search,
+                  }; // Поиск вхождения, если strict=false
+                }
+              }
+
+            return await prisma.node.count({ where: whereClause });
+
         } catch (error) {
             console.log("Error fetching nodes")
             throw new Error("Failed to fetch nodes")
@@ -40,6 +65,18 @@ class NodeService {
             }
 
             throw new Error(`Failed to fetch node`)
+        }
+    }
+
+    async getNodeByIp(ip: string): Promise<Node | null> {
+        try {
+            const node = await prisma.node.findUnique({
+                where: { ip },
+            });
+            return node;
+        } catch (error) {
+            console.error("Error fetching node by IP:", error);
+            return null; 
         }
     }
 
@@ -70,7 +107,7 @@ class NodeService {
         }
     }
 
-    async updateNode(id: number, data: Partial<Node>): Promise<Node | null> {
+    async updateNode(id: number, data: Node): Promise<Node | null> {
         try {
             const updatedNode = await prisma.node.update({
                 where: { id },
@@ -78,12 +115,34 @@ class NodeService {
             });
             return updatedNode;
         } catch (error: any) {
-            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-                // Запись не найдена
-                return null;
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                if (error.code === 'P2025') {
+                    return null;
+                } else if (error.code === 'P2002') { // Проверка на уникальность
+                    console.error("Unique key violation");
+                    throw new Error("Unique key violation");
+                }
             }
             console.error("Error updating node:", error);
-            throw new Error("Failed to update node"); // Переброс ошибки для обработки в контроллере
+            throw new Error("Failed to update node");
+        }
+    }
+
+    async patchNode(id: number, data: Partial<Node>): Promise<Node | null> {
+        try {
+            const updatedNode = await prisma.node.update({
+                where: { id },
+                data,
+            });
+            return updatedNode;
+        } catch (error: any) {
+            if (error instanceof Prisma.PrismaClientKnownRequestError) {
+                if (error.code === 'P2025') {
+                    return null;
+                }
+            }
+            console.error("Error updating node:", error);
+            throw new Error("Failed to update node");
         }
     }
     
@@ -99,7 +158,7 @@ class NodeService {
                 return null;
             }
             console.error("Error deleting node:", error);
-            throw new Error("Failed to delete node"); // Переброс ошибки для обработки в контроллере
+            throw new Error("Failed to delete node");
         }
     }
 
