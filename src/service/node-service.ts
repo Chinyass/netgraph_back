@@ -5,18 +5,47 @@ const prisma = new PrismaClient();
 
 class NodeService {
     async getAllNodes(take: number = 100, skip: number = 0, search?: string, searchField?: string, strict?: boolean) {
+        
         try {
-            const whereClause: any = {};
-
-            if (search && searchField) {
-                if (strict) {
-                  whereClause[searchField] = search; // Точное совпадение, если strict=true
-                } else {
-                  whereClause[searchField] = {
-                    contains: search,
-                  }; // Поиск вхождения, если strict=false
+            let whereClause: Prisma.NodeWhereInput = {};
+            if (search) {
+                if (searchField) {
+                    if (strict) {
+                        if (search === 'null') { // Проверка на 'null'
+                            whereClause = {
+                                [searchField]: null,
+                            };
+                        } else {
+                            whereClause = {
+                                [searchField]: {
+                                    equals: search,
+                                },
+                            };
+                        }
+                    } else { // Нестрогий поиск
+                        if (search === 'null') { // Проверка на 'null'
+                            whereClause = {
+                                [searchField]: null,
+                            };
+                        } else if (search == '""') { // Проверка на пустую строку
+                            whereClause = {
+                                [searchField]: {
+                                    equals: "",
+                                },
+                            };
+                        }
+                        else {
+                            whereClause = {
+                                
+                                [searchField]: {
+                                    
+                                    contains: search,
+                                },
+                            };
+                        }
+                    }
                 }
-              }
+            }
 
             const nodes = await prisma.node.findMany({
                 where: whereClause,
@@ -33,17 +62,44 @@ class NodeService {
     }
     async getCountNodes(search?: string, searchField?: string, strict?: boolean) {
         try {
-            const whereClause: any = {};
+            let whereClause: Prisma.NodeWhereInput = {};
             
-            if (search && searchField) {
-                if (strict) {
-                  whereClause[searchField] = search; // Точное совпадение, если strict=true
-                } else {
-                  whereClause[searchField] = {
-                    contains: search,
-                  }; // Поиск вхождения, если strict=false
+            if (search) {
+                if (searchField) {
+                    if (strict) {
+                        if (search === 'null') { // Проверка на 'null'
+                            whereClause = {
+                                [searchField]: null,
+                            };
+                        } else {
+                            whereClause = {
+                                [searchField]: {
+                                    equals: search,
+                                },
+                            };
+                        }
+                    } else { // Нестрогий поиск
+                        if (search === 'null') { // Проверка на 'null'
+                            whereClause = {
+                                [searchField]: null,
+                            };
+                        } else if (search == '""') { // Проверка на пустую строку
+                            whereClause = {
+                                [searchField]: {
+                                    equals: "",
+                                },
+                            };
+                        }
+                        else {
+                            whereClause = {
+                                [searchField]: {
+                                    contains: search,
+                                },
+                            };
+                        }
+                    }
                 }
-              }
+            }
 
             return await prisma.node.count({ where: whereClause });
 
@@ -52,6 +108,27 @@ class NodeService {
             throw new Error("Failed to fetch nodes")
         }
     }
+
+    async getNodeGroup(take: number = 100, skip: number = 0, groupBy: string){
+
+        let whereClause: Prisma.NodeWhereInput = {};
+        const groupedNodes = await prisma.node.groupBy({
+            by: ['location'],
+            _count: true,
+            where: whereClause,
+            orderBy: {
+                _count: {
+                    id: 'desc',
+                },
+            },
+            take,
+            skip
+        })
+
+        return groupedNodes
+        
+    }
+
     async getNodeById(id: number) {
         try {
             const node = await prisma.node.findUnique({where: { id }})

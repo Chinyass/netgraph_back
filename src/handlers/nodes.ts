@@ -12,11 +12,28 @@ export async function getNodes(req: Request<{}, any, any, { limit?: string; offs
 
         const search = req.query.search; // поисковый запрос
         const searchField = req.query.searchField; // поле для поиска (ip, name, location и т.д.)
+    
 
-        const nodes = await NodeService.getAllNodes(take, skip, search, searchField, strict);
+        const nodes = await NodeService.getAllNodes(take, skip, search, searchField, strict );
         const total_count = await NodeService.getCountNodes(search, searchField, strict)
         
         res.json({ nodes, total_count });
+
+    } catch (error: any) {
+        console.error("Error fetching nodes:", error);
+        res.status(500).json({ error: 'Failed to fetch nodes' });
+    }
+}
+
+export async function getNodeGroup(req: Request<{}, any, any, { limit?: string; offset?: string; groupBy: string }>, res: Response): Promise<void> {
+    try {
+        const take = parseInt(req.query.limit ?? '100', 10) || 100; // limit is 100 by default
+        const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
+        const groupBy = req.query.groupBy
+        
+        const nodes = await NodeService.getNodeGroup(take, skip, groupBy);
+        
+        res.json(nodes);
 
     } catch (error: any) {
         console.error("Error fetching nodes:", error);
