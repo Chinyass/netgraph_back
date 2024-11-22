@@ -39,4 +39,6 @@ model Node {
   snmp Boolean @default(false)
   error String?
   location String?
+  address String?
+  role String?
 }

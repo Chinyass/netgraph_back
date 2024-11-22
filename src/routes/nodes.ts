@@ -1,10 +1,11 @@
 import { Router } from "express"
-import { getNodeById, getNodes, createNode, createNodes, updateNode, patchNode, deleteNode, getNodeGroup } from '../handlers/nodes'
+import { getNodeById, getNodes, createNode, createNodes, updateNode, patchNode, deleteNode, getNodeGroup, getStantions } from '../handlers/nodes'
 const router = Router()
 
 router.post('/create', createNode)
 router.post('/create_nodes', createNodes)
-router.get('/', getNodes)
+router.post('/', getNodes)
+router.get('/stantions', getStantions)
 router.get('/group', getNodeGroup)
 router.get('/:id', getNodeById )
 router.put('/:id', updateNode)

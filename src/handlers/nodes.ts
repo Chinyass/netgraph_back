@@ -1,21 +1,23 @@
 import { Request, Response } from "express-serve-static-core";
 import NodeService from "../service/node-service"
 import { CreateNodeDto } from '../dtos/CreateNode.dto';
+import { SearchNodeDto } from "../dtos/SearchNode.dto";
 import { Node } from '@prisma/client';
 
-export async function getNodes(req: Request<{}, any, any, { limit?: string; offset?: string; search?: string; searchField?: string; strict?: string }>, res: Response): Promise<void> {
+export async function getNodes(req: Request<{}, any, SearchNodeDto[] | undefined , { limit?: string; offset?: string }>, res: Response): Promise<void> {
     try {
+
         const take = parseInt(req.query.limit ?? '100', 10) || 100; // limit is 100 by default
         const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
+
+        let search_datas: any = []
+
+        if( Array.isArray(req.body) ){
+            search_datas = req.body
+        }
         
-        const strict = req.query.strict === 'true'; // Преобразуем в boolean
-
-        const search = req.query.search; // поисковый запрос
-        const searchField = req.query.searchField; // поле для поиска (ip, name, location и т.д.)
-    
-
-        const nodes = await NodeService.getAllNodes(take, skip, search, searchField, strict );
-        const total_count = await NodeService.getCountNodes(search, searchField, strict)
+        const nodes = await NodeService.getAllNodes(take, skip, search_datas );
+        const total_count = await NodeService.getCountNodes(search_datas)
         
         res.json({ nodes, total_count });
 
@@ -25,12 +27,23 @@ export async function getNodes(req: Request<{}, any, any, { limit?: string; offs
     }
 }
 
+export async function getStantions(req: Request, res: Response) {
+    try {
+        const data = await NodeService.getLocationsCounts()
+        console.log(data)
+        res.json(data)
+
+    } catch (error: any) {
+        console.error("Error fetching stantions:", error);
+        res.status(500).json({ error: 'Failed to fetch stantions' });
+    }
+}
 export async function getNodeGroup(req: Request<{}, any, any, { limit?: string; offset?: string; groupBy: string }>, res: Response): Promise<void> {
     try {
         const take = parseInt(req.query.limit ?? '100', 10) || 100; // limit is 100 by default
         const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
         const groupBy = req.query.groupBy
-        
+
         const nodes = await NodeService.getNodeGroup(take, skip, groupBy);
         
         res.json(nodes);

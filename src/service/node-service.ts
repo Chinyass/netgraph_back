@@ -1,50 +1,23 @@
 import { Prisma, PrismaClient, Node } from '@prisma/client';
 import { CreateNodeDto } from '../dtos/CreateNode.dto';
+import { SearchNodeDto } from '../dtos/SearchNode.dto';
 
 const prisma = new PrismaClient();
 
 class NodeService {
-    async getAllNodes(take: number = 100, skip: number = 0, search?: string, searchField?: string, strict?: boolean) {
-        
+    async getAllNodes(take: number = 100, skip: number = 0, search_datas: SearchNodeDto[] | undefined) {
+
         try {
-            let whereClause: Prisma.NodeWhereInput = {};
-            if (search) {
-                if (searchField) {
-                    if (strict) {
-                        if (search === 'null') { // Проверка на 'null'
-                            whereClause = {
-                                [searchField]: null,
-                            };
-                        } else {
-                            whereClause = {
-                                [searchField]: {
-                                    equals: search,
-                                },
-                            };
-                        }
-                    } else { // Нестрогий поиск
-                        if (search === 'null') { // Проверка на 'null'
-                            whereClause = {
-                                [searchField]: null,
-                            };
-                        } else if (search == '""') { // Проверка на пустую строку
-                            whereClause = {
-                                [searchField]: {
-                                    equals: "",
-                                },
-                            };
-                        }
-                        else {
-                            whereClause = {
-                                
-                                [searchField]: {
-                                    
-                                    contains: search,
-                                },
-                            };
-                        }
+            const whereClause: any= {};
+            if (search_datas){
+                search_datas.map( data => {
+                    if (data.strict) {
+                        whereClause[data.search_field] = { equals : data.query }
                     }
-                }
+                    else {
+                        whereClause[data.search_field] = { contains : data.query }
+                    }
+                })
             }
 
             const nodes = await prisma.node.findMany({
@@ -60,45 +33,48 @@ class NodeService {
             throw new Error("Failed to fetch nodes")
         }
     }
-    async getCountNodes(search?: string, searchField?: string, strict?: boolean) {
+    async getLocationsCounts(){
         try {
-            let whereClause: Prisma.NodeWhereInput = {};
-            
-            if (search) {
-                if (searchField) {
-                    if (strict) {
-                        if (search === 'null') { // Проверка на 'null'
-                            whereClause = {
-                                [searchField]: null,
-                            };
-                        } else {
-                            whereClause = {
-                                [searchField]: {
-                                    equals: search,
-                                },
-                            };
-                        }
-                    } else { // Нестрогий поиск
-                        if (search === 'null') { // Проверка на 'null'
-                            whereClause = {
-                                [searchField]: null,
-                            };
-                        } else if (search == '""') { // Проверка на пустую строку
-                            whereClause = {
-                                [searchField]: {
-                                    equals: "",
-                                },
-                            };
-                        }
-                        else {
-                            whereClause = {
-                                [searchField]: {
-                                    contains: search,
-                                },
-                            };
-                        }
+            console.log("ENTER")
+            const results = await prisma.$queryRaw<
+                Array<{
+                    location: string | null;
+                    total_count: number;
+                    station_count: number;
+                    access_node_count: number;
+                }>
+            >`
+                SELECT
+                location,
+                COUNT(*) AS total_count,
+                SUM(CASE WHEN role = 'Станция' THEN 1 ELSE 0 END) AS station_count,
+                SUM(CASE WHEN role = 'Узел доступа' THEN 1 ELSE 0 END) AS access_node_count
+                FROM
+                Node
+                GROUP BY
+                location
+            `;
+
+            console.log('RESULT',results)
+
+            return results
+
+        } catch (error) {
+            console.log(error)
+        }
+    }
+    async getCountNodes( search_datas: SearchNodeDto[] | undefined ) {
+        try {
+            const whereClause: any= {};
+            if (search_datas){
+                search_datas.map( data => {
+                    if (data.strict) {
+                        whereClause[data.search_field] = { equals : data.query }
                     }
-                }
+                    else {
+                        whereClause[data.search_field] = { contains : data.query }
+                    }
+                })
             }
 
             return await prisma.node.count({ where: whereClause });
