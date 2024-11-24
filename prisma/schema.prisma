@@ -29,6 +29,7 @@ model Token {
   userId Int
 }
 
+
 model Node {
   id Int @id @default(autoincrement())
   ip String @unique
@@ -38,7 +39,29 @@ model Node {
   ping Boolean @default(false)
   snmp Boolean @default(false)
   error String?
-  location String?
+  zoneId Int?       
+  zone Zone? @relation(fields: [zoneId], references: [id])
+  roles Role[] @relation("NodeRoles")
+  locationId Int?
+  location Location? @relation(fields: [locationId], references: [id])
   address String?
-  role String?
+}
+
+model Location {
+  id          Int              @id @default(autoincrement())
+  name        String @unique
+  nodes Node[]
+}
+
+model Zone {
+  id Int @id @default(autoincrement())
+  code String @unique
+  name String @unique
+  nodes Node[]
+}
+
+model Role {
+  id Int @id @default(autoincrement())
+  name String @unique
+  nodes Node[] @relation("NodeRoles")
 }

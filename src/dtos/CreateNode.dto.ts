@@ -1,4 +1,5 @@
 export interface CreateNodeDto {
+
     ip: string
     name: string | null
     model: string | null
@@ -6,5 +7,8 @@ export interface CreateNodeDto {
     ping: boolean
     snmp: boolean
     error: string | null
-    location: string | null
+    locationId: number | null
+    roleIds: number[] | null
+    zoneId: number | null
+
 }

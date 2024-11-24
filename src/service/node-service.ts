@@ -1,122 +1,51 @@
 import { Prisma, PrismaClient, Node } from '@prisma/client';
 import { CreateNodeDto } from '../dtos/CreateNode.dto';
-import { SearchNodeDto } from '../dtos/SearchNode.dto';
 
 const prisma = new PrismaClient();
 
 class NodeService {
-    async getAllNodes(take: number = 100, skip: number = 0, search_datas: SearchNodeDto[] | undefined) {
-
+    
+    async getAllNodes(take: number = 100, skip: number = 0) {
         try {
-            const whereClause: any= {};
-            if (search_datas){
-                search_datas.map( data => {
-                    if (data.strict) {
-                        whereClause[data.search_field] = { equals : data.query }
-                    }
-                    else {
-                        whereClause[data.search_field] = { contains : data.query }
-                    }
-                })
-            }
 
-            const nodes = await prisma.node.findMany({
-                where: whereClause,
-                take,
-                skip,
-            })
-
-            return nodes
-
+          const [nodes, total_count] = await Promise.all([
+            prisma.node.findMany({
+              take,
+              skip,
+              include: {
+                zone: true,
+                location: true,
+                roles: true,
+              }
+            }),
+            prisma.node.count(),
+          ]);
+      
+          return { nodes, total_count };
+          
         } catch (error) {
-            console.log("Error fetching nodes", error)
-            throw new Error("Failed to fetch nodes")
+          console.log("Error fetching nodes", error);
+          throw new Error("Failed to fetch nodes");
         }
-    }
-    async getLocationsCounts(){
-        try {
-            console.log("ENTER")
-            const results = await prisma.$queryRaw<
-                Array<{
-                    location: string | null;
-                    total_count: number;
-                    station_count: number;
-                    access_node_count: number;
-                }>
-            >`
-                SELECT
-                location,
-                COUNT(*) AS total_count,
-                SUM(CASE WHEN role = 'Станция' THEN 1 ELSE 0 END) AS station_count,
-                SUM(CASE WHEN role = 'Узел доступа' THEN 1 ELSE 0 END) AS access_node_count
-                FROM
-                Node
-                GROUP BY
-                location
-            `;
-
-            console.log('RESULT',results)
-
-            return results
-
-        } catch (error) {
-            console.log(error)
-        }
-    }
-    async getCountNodes( search_datas: SearchNodeDto[] | undefined ) {
-        try {
-            const whereClause: any= {};
-            if (search_datas){
-                search_datas.map( data => {
-                    if (data.strict) {
-                        whereClause[data.search_field] = { equals : data.query }
-                    }
-                    else {
-                        whereClause[data.search_field] = { contains : data.query }
-                    }
-                })
-            }
-
-            return await prisma.node.count({ where: whereClause });
-
-        } catch (error) {
-            console.log("Error fetching nodes")
-            throw new Error("Failed to fetch nodes")
-        }
-    }
-
-    async getNodeGroup(take: number = 100, skip: number = 0, groupBy: string){
-
-        let whereClause: Prisma.NodeWhereInput = {};
-        const groupedNodes = await prisma.node.groupBy({
-            by: ['location'],
-            _count: true,
-            where: whereClause,
-            orderBy: {
-                _count: {
-                    id: 'desc',
-                },
-            },
-            take,
-            skip
-        })
-
-        return groupedNodes
-        
-    }
-
+      }
+    
     async getNodeById(id: number) {
         try {
-            const node = await prisma.node.findUnique({where: { id }})
+            const node = await prisma.node.findUnique({
+                where: { id },
+                include: {
+                    zone: true,
+                    location: true,
+                    roles: true,
+                }
+            })
             return node
 
         } catch (error: any) {
             console.log("Error fetching node")
-            const errorMessage = error.message || String(error)
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'){
                 throw new Error("Node not found")
             }
-
             throw new Error(`Failed to fetch node`)
         }
     }
@@ -125,6 +54,11 @@ class NodeService {
         try {
             const node = await prisma.node.findUnique({
                 where: { ip },
+                include: {
+                    zone: true,
+                    location: true,
+                    roles: true,
+                },
             });
             return node;
         } catch (error) {
@@ -133,34 +67,37 @@ class NodeService {
         }
     }
 
-    async CreateNode(nodeData: CreateNodeDto) {
+    async CreateNode(data: CreateNodeDto) {
         try {
-            const newNode = await prisma.node.create({ data: nodeData })
+
+            const { roleIds, locationId, zoneId, ...nodeData } = data;
+
+            const newNode = await prisma.node.create({
+                data: {
+                  ...nodeData,
+                  zone: data.zoneId ? { connect: { id: data.zoneId } } : undefined,
+                  location: data.locationId ? { connect: { id: data.locationId } } : undefined,
+                  roles: roleIds ? { connect: roleIds.map(id => ({ id })) } : undefined,
+                },
+                include: {
+                  zone: true,
+                  location: true,
+                  roles: true,
+                },
+              });
+
             return newNode
 
         } catch (error: any) {
             console.log("Error creating node: ", error)
-            const errorMessage = error.message || String(error)
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'){
                 throw new Error("Node with this IP already exists")
             }
             throw new Error(`Failed to create node`)
-
-        }
-    }
-    async CreateNodes(nodeData: CreateNodeDto[]){
-        try {
-            const newNodes = await prisma.$transaction(nodeData.map(data => prisma.node.create({ data: data })));
-            return newNodes
-        
-        } catch (error: any) {
-            console.error("Error creating nodes:", error);
-            const errorMessage = error.message || String(error);
-            throw new Error(`Failed to create nodes `);
         }
     }
 
-    async updateNode(id: number, data: Node): Promise<Node | null> {
+    async updateNodeById(id: number, data: Partial<Node>): Promise<Node | null> {
         try {
             const updatedNode = await prisma.node.update({
                 where: { id },
@@ -181,25 +118,7 @@ class NodeService {
         }
     }
 
-    async patchNode(id: number, data: Partial<Node>): Promise<Node | null> {
-        try {
-            const updatedNode = await prisma.node.update({
-                where: { id },
-                data,
-            });
-            return updatedNode;
-        } catch (error: any) {
-            if (error instanceof Prisma.PrismaClientKnownRequestError) {
-                if (error.code === 'P2025') {
-                    return null;
-                }
-            }
-            console.error("Error updating node:", error);
-            throw new Error("Failed to update node");
-        }
-    }
-    
-    async deleteNode(id: number): Promise<Node | null> {
+    async deleteNodeById(id: number): Promise<Node | null> {
         try {
             const deletedNode = await prisma.node.delete({
                 where: { id },
@@ -215,5 +134,250 @@ class NodeService {
         }
     }
 
+    // Функция для добавления роли к узлу
+  async addRoleToNode(nodeId: number, roleId: number) {
+    try {
+      // Проверяем, существует ли узел
+      const nodeExists = await prisma.node.findUnique({
+        where: { id: nodeId },
+        select: { id: true },
+      });
+      if (!nodeExists) {
+        throw new Error(`Node with id ${nodeId} does not exist.`);
+      }
+
+      // Проверяем, существует ли роль
+      const roleExists = await prisma.role.findUnique({
+        where: { id: roleId },
+        select: { id: true },
+      });
+      if (!roleExists) {
+        throw new Error(`Role with id ${roleId} does not exist.`);
+      }
+
+      // Проверяем, уже ли роль привязана к узлу
+      const nodeWithRoles = await prisma.node.findUnique({
+        where: { id: nodeId },
+        select: {
+          roles: {
+            where: { id: roleId },
+            select: { id: true },
+          },
+        },
+      });
+      if (nodeWithRoles?.roles.length) {
+        throw new Error(`Role with id ${roleId} is already assigned to node ${nodeId}.`);
+      }
+
+      // Добавляем роль к узлу
+      const updatedNode = await prisma.node.update({
+        where: { id: nodeId },
+        data: {
+          roles: {
+            connect: { id: roleId },
+          },
+        },
+        include: {
+          roles: true, // Включаем роли в ответе для проверки результата
+        },
+      });
+
+      return updatedNode;
+    } catch (error: any) {
+      console.error("Error adding role to node:", error);
+      throw new Error(error.message || "Failed to add role to node");
+    }
+  }
+
+  // Функция для отвязки роли от узла
+  async removeRoleFromNode(nodeId: number, roleId: number) {
+    try {
+      // Проверяем, существует ли узел
+      const nodeExists = await prisma.node.findUnique({
+        where: { id: nodeId },
+        select: { id: true },
+      });
+      if (!nodeExists) {
+        throw new Error(`Node with id ${nodeId} does not exist.`);
+      }
+
+      // Проверяем, существует ли роль
+      const roleExists = await prisma.role.findUnique({
+        where: { id: roleId },
+        select: { id: true },
+      });
+      if (!roleExists) {
+        throw new Error(`Role with id ${roleId} does not exist.`);
+      }
+
+      // Отвязываем роль от узла
+      const updatedNode = await prisma.node.update({
+        where: { id: nodeId },
+        data: {
+          roles: {
+            disconnect: { id: roleId },
+          },
+        },
+        include: {
+          roles: true,
+        },
+      });
+
+      return updatedNode;
+    } catch (error: any) {
+      console.error('Error removing role from node:', error);
+      throw new Error(error.message || 'Failed to remove role from node');
+    }
+  }
+
+  async assignLocationToNode(nodeId: number, locationId: number) {
+    try {
+      // Проверяем, существует ли узел
+      const nodeExists = await prisma.node.findUnique({
+        where: { id: nodeId },
+        select: { id: true },
+      });
+      if (!nodeExists) {
+        throw new Error(`Node with id ${nodeId} does not exist.`);
+      }
+  
+      // Проверяем, существует ли локация
+      const locationExists = await prisma.location.findUnique({
+        where: { id: locationId },
+        select: { id: true },
+      });
+      if (!locationExists) {
+        throw new Error(`Location with id ${locationId} does not exist.`);
+      }
+  
+      // Присваиваем локацию узлу с помощью connect
+      const updatedNode = await prisma.node.update({
+        where: { id: nodeId },
+        data: {
+          location: {
+            connect: { id: locationId },
+          },
+        },
+        include: {
+          location: true, // Включаем локацию в ответе
+        },
+      });
+  
+      return updatedNode;
+    } catch (error: any) {
+      console.error('Error assigning location to node:', error);
+      throw new Error(error.message || 'Failed to assign location to node');
+    }
+  }
+
+  // Функция для отвязки локации от узла
+  async removeLocationFromNode(nodeId: number) {
+    try {
+      // Проверяем, существует ли узел
+      const nodeExists = await prisma.node.findUnique({
+        where: { id: nodeId },
+        select: { id: true, locationId: true },
+      });
+      if (!nodeExists) {
+        throw new Error(`Node with id ${nodeId} does not exist.`);
+      }
+
+      if (nodeExists.locationId === null) {
+        throw new Error(`Node with id ${nodeId} does not have a location assigned.`);
+      }
+
+      // Отвязываем локацию от узла
+      const updatedNode = await prisma.node.update({
+        where: { id: nodeId },
+        data: {
+          location: {
+            disconnect: true,
+          },
+        },
+        include: {
+          location: true,
+        },
+      });
+
+      return updatedNode;
+    } catch (error: any) {
+      console.error('Error removing location from node:', error);
+      throw new Error(error.message || 'Failed to remove location from node');
+    }
+  }
+
+  async assignZoneToNode(nodeId: number, zoneId: number) {
+    try {
+      // Проверяем, существует ли узел
+      const nodeExists = await prisma.node.findUnique({
+        where: { id: nodeId },
+        select: { id: true },
+      });
+      if (!nodeExists) {
+        throw new Error(`Node with id ${nodeId} does not exist.`);
+      }
+
+      // Проверяем, существует ли зона
+      const zoneExists = await prisma.zone.findUnique({
+        where: { id: zoneId },
+        select: { id: true },
+      });
+      if (!zoneExists) {
+        throw new Error(`Zone with id ${zoneId} does not exist.`);
+      }
+
+      // Присваиваем зону узлу используя connect
+      const updatedNode = await prisma.node.update({
+        where: { id: nodeId },
+        data: {
+          zone: {
+            connect: { id: zoneId },
+          },
+        },
+        include: {
+          zone: true, // Включаем зону в ответе
+        },
+      });
+
+      return updatedNode;
+    } catch (error: any) {
+      console.error('Error assigning zone to node:', error);
+      throw new Error(error.message || 'Failed to assign zone to node');
+    }
+  }
+
+  // Функция для удаления зоны из узла
+  async removeZoneFromNode(nodeId: number) {
+    try {
+      // Проверяем, существует ли узел
+      const nodeExists = await prisma.node.findUnique({
+        where: { id: nodeId },
+        select: { id: true },
+      });
+      if (!nodeExists) {
+        throw new Error(`Node with id ${nodeId} does not exist.`);
+      }
+
+      // Убираем связь с зоной
+      const updatedNode = await prisma.node.update({
+        where: { id: nodeId },
+        data: {
+          zone: {
+            disconnect: true,
+          },
+        },
+        include: {
+          zone: true, // Включаем зону в ответе (будет null)
+        },
+      });
+
+      return updatedNode;
+    } catch (error: any) {
+      console.error('Error removing zone from node:', error);
+      throw new Error(error.message || 'Failed to remove zone from node');
+    }
+  }
+
 }
+
 export default new NodeService()

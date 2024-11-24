@@ -1,52 +1,17 @@
 import { Request, Response } from "express-serve-static-core";
 import NodeService from "../service/node-service"
 import { CreateNodeDto } from '../dtos/CreateNode.dto';
-import { SearchNodeDto } from "../dtos/SearchNode.dto";
 import { Node } from '@prisma/client';
 
-export async function getNodes(req: Request<{}, any, SearchNodeDto[] | undefined , { limit?: string; offset?: string }>, res: Response): Promise<void> {
+export async function getNodes(req: Request<{}, any, any, { limit?: string; offset?: string }>, res: Response): Promise<void> {
     try {
 
         const take = parseInt(req.query.limit ?? '100', 10) || 100; // limit is 100 by default
         const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
 
-        let search_datas: any = []
-
-        if( Array.isArray(req.body) ){
-            search_datas = req.body
-        }
-        
-        const nodes = await NodeService.getAllNodes(take, skip, search_datas );
-        const total_count = await NodeService.getCountNodes(search_datas)
+        const { nodes, total_count } = await NodeService.getAllNodes(take, skip);
         
         res.json({ nodes, total_count });
-
-    } catch (error: any) {
-        console.error("Error fetching nodes:", error);
-        res.status(500).json({ error: 'Failed to fetch nodes' });
-    }
-}
-
-export async function getStantions(req: Request, res: Response) {
-    try {
-        const data = await NodeService.getLocationsCounts()
-        console.log(data)
-        res.json(data)
-
-    } catch (error: any) {
-        console.error("Error fetching stantions:", error);
-        res.status(500).json({ error: 'Failed to fetch stantions' });
-    }
-}
-export async function getNodeGroup(req: Request<{}, any, any, { limit?: string; offset?: string; groupBy: string }>, res: Response): Promise<void> {
-    try {
-        const take = parseInt(req.query.limit ?? '100', 10) || 100; // limit is 100 by default
-        const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
-        const groupBy = req.query.groupBy
-
-        const nodes = await NodeService.getNodeGroup(take, skip, groupBy);
-        
-        res.json(nodes);
 
     } catch (error: any) {
         console.error("Error fetching nodes:", error);
@@ -77,16 +42,17 @@ export async function getNodeById(request: Request, response: Response) {
         response.status(500).json({ error: 'Failed to fetch node' });
     }
 }
-export async function getNodeByIp(request: Request, response: Response) {
+export async function getNodeByIp(request: Request, response: Response): Promise<void> {
     try {
         const ip = request.params.ip;
         const node = await NodeService.getNodeByIp(ip);
     
         if (!node) {
-          return response.status(404).json({ error: 'Node not found' });
+          response.status(404).json({ error: 'Node not found' });
         }
-    
-        response.json(node);
+        else{
+          response.json(node);
+        }
     
       } catch (error) {
         console.error('Error fetching node by IP', error);
@@ -100,6 +66,7 @@ export async function createNode(request: Request<{}, {}, CreateNodeDto>, respon
         response.status(201).json(newNode)
 
     } catch (error: any) {
+        console.log(request.body)
         if (error.message == 'Node with this IP already exists') {
             response.status(409).json({ error: error.message })
         } else {
@@ -109,18 +76,8 @@ export async function createNode(request: Request<{}, {}, CreateNodeDto>, respon
     }
 }
 
-export async function createNodes(request: Request<{}, {}, CreateNodeDto[]>, response: Response) {
-    try {
-        const newNodes = await NodeService.CreateNodes(request.body)
-        response.status(201).json(newNodes)
-    } catch (error: any) {
-        console.error(error)
-        response.status(500).json({ error: error.message })
-    }
-}
-
 // Функция для обновления всего узла
-export async function updateNode(req: Request<{ id: string }>, res: Response): Promise<void> {
+export async function updateNodeById(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
         const nodeId = parseInt(req.params.id, 10);
         if (isNaN(nodeId)) {
@@ -132,7 +89,7 @@ export async function updateNode(req: Request<{ id: string }>, res: Response): P
             res.status(400).json({ error: "No data provided for update" });
         }
 
-        const updatedNode = await NodeService.updateNode(nodeId, data);
+        const updatedNode = await NodeService.updateNodeById(nodeId, data);
 
         if (!updatedNode) {
             res.status(404).json({ error: 'Node not found' });
@@ -146,46 +103,14 @@ export async function updateNode(req: Request<{ id: string }>, res: Response): P
     }
 }
 
-// Функция для частичного обновления узла (PATCH)
-export async function patchNode(req: Request<{ id: string }>, res: Response): Promise<void> {
+export async function deleteNodeById(req: Request<{ id: string }>, res: Response): Promise<void> {
     try {
         const nodeId = parseInt(req.params.id, 10);
         if (isNaN(nodeId)) {
             res.status(400).json({ error: 'Invalid node ID' });
         }
 
-        const data: Partial<Node> = req.body; // Обновляем частично
-        if (!data) {
-            res.status(400).json({ error: "No data provided for update" });
-        }
-
-        const hasUpdate = Object.keys(data).some(key => key !== 'id');
-        if (!hasUpdate) {
-            res.status(400).json({ error: 'No fields to update' });
-        }
-
-
-        const updatedNode = await NodeService.patchNode(nodeId, data);
-
-        if (!updatedNode) {
-            res.status(404).json({ error: 'Node not found' });
-        }
-
-        res.json(updatedNode);
-    } catch (error: any) {
-        console.error("Error updating node:", error);
-        res.status(500).json({ error: 'Failed to update node' });
-    }
-}
-
-export async function deleteNode(req: Request<{ id: string }>, res: Response): Promise<void> {
-    try {
-        const nodeId = parseInt(req.params.id, 10);
-        if (isNaN(nodeId)) {
-            res.status(400).json({ error: 'Invalid node ID' });
-        }
-
-        const deletedNode = await NodeService.deleteNode(nodeId);
+        const deletedNode = await NodeService.deleteNodeById(nodeId);
 
         if (!deletedNode) {
             res.status(404).json({ error: 'Node not found' });
@@ -197,3 +122,138 @@ export async function deleteNode(req: Request<{ id: string }>, res: Response): P
         res.status(500).json({ error: 'Failed to delete node' });
     }
 }
+
+// Контроллер для добавления роли к узлу
+export async function addRoleToNode(req: Request, res: Response): Promise<void> {
+    try {
+      const nodeId = parseInt(req.params.nodeId, 10);
+      const roleId = parseInt(req.params.roleId, 10);
+  
+      if (isNaN(nodeId) || isNaN(roleId)) {
+        res.status(400).json({ error: 'Invalid nodeId or roleId. Both must be integers.' });
+      }
+  
+      const updatedNode = await NodeService.addRoleToNode(nodeId, roleId);
+  
+      res.json(updatedNode);
+    } catch (error: any) {
+      console.error("Error in addRoleToNode controller:", error);
+      if (error.message.includes('does not exist') || error.message.includes('already assigned')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to add role to node' });
+      }
+    }
+}
+
+export async function removeRoleFromNode(req: Request, res: Response): Promise<void> {
+    try {
+      const nodeId = parseInt(req.params.nodeId, 10);
+      const roleId = parseInt(req.params.roleId, 10);
+  
+      if (isNaN(nodeId) || isNaN(roleId)) {
+        res.status(400).json({ error: 'Invalid nodeId or roleId. Both must be integers.' });
+      }
+  
+      const updatedNode = await NodeService.removeRoleFromNode(nodeId, roleId);
+  
+      res.json(updatedNode);
+    } catch (error: any) {
+      console.error('Error in removeRoleFromNode controller:', error);
+      if (error.message.includes('does not exist')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to remove role from node' });
+      }
+    }
+  }
+
+export async function assignLocationToNode(req: Request, res: Response): Promise<void> {
+    try {
+      const nodeId = parseInt(req.params.nodeId, 10);
+      const locationId = parseInt(req.params.locationId, 10);
+  
+      if (isNaN(nodeId) || isNaN(locationId)) {
+        res.status(400).json({ error: 'Invalid nodeId or locationId. Both must be integers.' });
+      }
+  
+      const updatedNode = await NodeService.assignLocationToNode(nodeId, locationId);
+  
+      res.json(updatedNode);
+    } catch (error: any) {
+      console.error('Error in assignLocationToNode controller:', error);
+      if (error.message.includes('does not exist')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to assign location to node' });
+      }
+    }
+}
+
+// Контроллер для удаления локации из узла
+export async function removeLocationFromNode(req: Request, res: Response): Promise<void> {
+    try {
+      const nodeId = parseInt(req.params.nodeId, 10);
+  
+      if (isNaN(nodeId)) {
+        res.status(400).json({ error: 'Invalid nodeId. Must be an integer.' });
+      }
+  
+      const updatedNode = await NodeService.removeLocationFromNode(nodeId);
+  
+      res.json(updatedNode);
+    } catch (error: any) {
+      console.error('Error in removeLocationFromNode controller:', error);
+      if (error.message.includes('does not exist') || error.message.includes('does not have a location assigned')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to remove location from node' });
+      }
+    }
+}
+
+// Контроллер для присвоения зоны узлу
+export async function assignZoneToNode(req: Request, res: Response): Promise<void> {
+    try {
+      const nodeId = parseInt(req.params.nodeId, 10);
+      const zoneId = parseInt(req.params.zoneId, 10);
+  
+      if (isNaN(nodeId) || isNaN(zoneId)) {
+        res.status(400).json({ error: 'Invalid nodeId or zoneId. Both must be integers.' });
+      }
+  
+      const updatedNode = await NodeService.assignZoneToNode(nodeId, zoneId);
+  
+      res.json(updatedNode);
+    } catch (error: any) {
+      console.error('Error in assignZoneToNode controller:', error);
+      if (error.message.includes('does not exist')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Failed to assign zone to node' });
+      }
+    }
+  }
+  
+// Контроллер для удаления зоны из узла
+export async function removeZoneFromNode(req: Request, res: Response): Promise<void> {
+try {
+    const nodeId = parseInt(req.params.nodeId, 10);
+
+    if (isNaN(nodeId)) {
+    res.status(400).json({ error: 'Invalid nodeId. Must be an integer.' });
+    }
+
+    const updatedNode = await NodeService.removeZoneFromNode(nodeId);
+
+    res.json(updatedNode);
+} catch (error: any) {
+    console.error('Error in removeZoneFromNode controller:', error);
+    if (error.message.includes('does not exist')) {
+    res.status(404).json({ error: error.message });
+    } else {
+    res.status(500).json({ error: 'Failed to remove zone from node' });
+    }
+}
+}
+
