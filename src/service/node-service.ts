@@ -5,29 +5,50 @@ const prisma = new PrismaClient();
 
 class NodeService {
     
-    async getAllNodes(take: number = 100, skip: number = 0) {
+      async getAllNodes(take: number = 100, skip: number = 0, filters: any = {}) {
         try {
+            // Формируем объект условий для фильтрации
+            const whereCondition: any = {};
 
-          const [nodes, total_count] = await Promise.all([
-            prisma.node.findMany({
-              take,
-              skip,
-              include: {
-                zone: true,
-                location: true,
-                roles: true,
-              }
-            }),
-            prisma.node.count(),
-          ]);
-      
-          return { nodes, total_count };
-          
+            if (filters.zone_id) {
+                whereCondition.zoneId = Number(filters.zone_id);
+            }
+
+            if (filters.location_id) {
+                whereCondition.locationId = Number(filters.location_id);
+            }
+
+            // Добавьте дополнительные условия фильтрации по другим полям при необходимости
+            // Например, фильтрация по имени узла
+            if (filters.name) {
+                // Используем contains для поиска по подстроке (независимо от регистра)
+                whereCondition.name = { contains: filters.name, mode: 'insensitive' };
+            }
+
+            // Выполняем параллельные запросы для получения узлов и общего количества
+            const [nodes, total_count] = await Promise.all([
+                prisma.node.findMany({
+                    where: whereCondition,
+                    take,
+                    skip,
+                    include: {
+                        zone: true,
+                        location: true,
+                        roles: true,
+                    }
+                }),
+                prisma.node.count({
+                    where: whereCondition,
+                }),
+            ]);
+
+            return { nodes, total_count };
+
         } catch (error) {
-          console.log("Error fetching nodes", error);
-          throw new Error("Failed to fetch nodes");
+            console.log("Error fetching nodes", error);
+            throw new Error("Failed to fetch nodes");
         }
-      }
+    }
     
     async getNodeById(id: number) {
         try {

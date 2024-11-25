@@ -7,8 +7,54 @@ class ZoneService {
 
     async getAllZones() {
         try {
-            const zones = await prisma.zone.findMany();
-            return zones;
+            // Получаем список зон
+            const zones = await prisma.zone.findMany({
+                include: {
+                    _count: {
+                        select: { nodes: true },
+                    },
+                },
+            });
+    
+            // Для каждой зоны получаем количество узлов по локациям
+            const zonesWithLocationCounts = await Promise.all(
+                zones.map(async (zone) => {
+                    // Получаем количество узлов по локациям в данной зоне
+                    const locationCounts = await prisma.node.groupBy({
+                        by: ['locationId'],
+                        where: { zoneId: zone.id },
+                        _count: {
+                            id: true,
+                        },
+                    });
+    
+                    // Преобразуем результат в удобный формат
+                    const locationCountsObj:any = {};
+                    for (const item of locationCounts) {
+                        const locationId:any = item.locationId;
+                        const count = item._count.id;
+    
+                        // Получаем информацию о локации (например, название)
+                        const location = await prisma.location.findUnique({
+                            where: { id: locationId },
+                            select: { id: true, name: true },
+                        });
+    
+                        if (location) {
+                            locationCountsObj[location.name] = count;
+                        } else {
+                            locationCountsObj[`Location ${locationId}`] = count;
+                        }
+                    }
+    
+                    return {
+                        ...zone,
+                        locationCounts: locationCountsObj,
+                    };
+                })
+            );
+    
+            return zonesWithLocationCounts;
         } catch (error) {
             console.error("Error fetching zones:", error);
             throw new Error("Failed to fetch zones");
@@ -18,6 +64,19 @@ class ZoneService {
     async getZoneById(id: number): Promise<Zone | null> {
         try {
             const zone = await prisma.zone.findUnique({ where: { id } });
+            return zone;
+        } catch (error: any) {
+            console.error("Error fetching zone:", error);
+            if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+                throw new Error("Zone not found");
+            }
+            throw new Error("Failed to fetch zone");
+        }
+    }
+
+    async getZoneByName(name: string): Promise<Zone | null> {
+        try {
+            const zone = await prisma.zone.findUnique({ where: { name } });
             return zone;
         } catch (error: any) {
             console.error("Error fetching zone:", error);

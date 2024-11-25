@@ -36,6 +36,23 @@ export async function getZoneById(req: Request<{ id: string }>, res: Response): 
     }
 }
 
+export async function getZoneByName(req: Request<{ name: string }>, res: Response): Promise<void> {
+    try {
+
+        const zoneName = req.params.name
+        const zone = await ZoneService.getZoneByName(zoneName);
+
+        if (zone) {
+            res.json(zone);
+        } else {
+            res.status(404).json({ error: 'Zone not found' });
+        }
+    } catch (error: any) {
+        console.error("Error fetching zone:", error);
+        res.status(500).json({ error: 'Failed to fetch zone' });
+    }
+}
+
 export async function createZone(req: Request<{}, {}, createZoneDto>, res: Response): Promise<void> {
     try {
         const newZone = await ZoneService.createZone(req.body);

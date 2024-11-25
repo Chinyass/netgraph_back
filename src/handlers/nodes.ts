@@ -3,20 +3,28 @@ import NodeService from "../service/node-service"
 import { CreateNodeDto } from '../dtos/CreateNode.dto';
 import { Node } from '@prisma/client';
 
-export async function getNodes(req: Request<{}, any, any, { limit?: string; offset?: string }>, res: Response): Promise<void> {
-    try {
+export async function getNodes(req: Request<{}, any, any, { [key: string]: string | undefined }>, res: Response): Promise<void> {
+  try {
+      const take = parseInt(req.query.limit ?? '100', 10) || 100; // limit is 100 by default
+      const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
 
-        const take = parseInt(req.query.limit ?? '100', 10) || 100; // limit is 100 by default
-        const skip = parseInt(req.query.offset ?? '0', 10) || 0; // offset is 0 by default
+      // Получаем фильтры из запроса
+      const filters = {
+          zone_id: req.query.zone_id,
+          location_id: req.query.location_id,
+          name: req.query.name,
+          address: req.query.address,
+          ip: req.query.ip
+      };
 
-        const { nodes, total_count } = await NodeService.getAllNodes(take, skip);
-        
-        res.json({ nodes, total_count });
+      const { nodes, total_count } = await NodeService.getAllNodes(take, skip, filters);
 
-    } catch (error: any) {
-        console.error("Error fetching nodes:", error);
-        res.status(500).json({ error: 'Failed to fetch nodes' });
-    }
+      res.json({ nodes, total_count });
+
+  } catch (error: any) {
+      console.error("Error fetching nodes:", error);
+      res.status(500).json({ error: 'Failed to fetch nodes' });
+  }
 }
 
 export async function getNodeById(request: Request, response: Response) {
