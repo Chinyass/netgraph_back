@@ -6,6 +6,8 @@ import {
     createZone,
     updateZoneById,
     deleteZoneById,
+    assignLocality,
+    removeLocality
 } from '../handlers/zone';
 
 const router = Router();
@@ -16,5 +18,8 @@ router.get('/:id', getZoneById);
 router.post('/', createZone);
 router.put('/:id', updateZoneById);
 router.delete('/:id', deleteZoneById);
+
+router.post('/:zoneId/locality/:localityId', assignLocality)
+router.delete('/:zoneId/locality/', removeLocality);
 
 export default router;

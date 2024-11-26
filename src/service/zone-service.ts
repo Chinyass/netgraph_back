@@ -131,6 +131,57 @@ class ZoneService {
             throw new Error("Failed to delete zone");
         }
     }
+
+    async assignLocalityToZone(zoneId: number, localityId: number) {
+        try {
+          // Проверяем, существует ли Zone
+          const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+          if (!zone) {
+            throw new Error('Zone not found');
+          }
+      
+          // Проверяем, существует ли Locality
+          const locality = await prisma.locality.findUnique({ where: { id: localityId } });
+          if (!locality) {
+            throw new Error('Locality not found');
+          }
+      
+          // Обновляем запись Zone, назначая localityId
+          const updatedZone = await prisma.zone.update({
+            where: { id: zoneId },
+            data: { localityId },
+            include: { locality: true },
+          });
+      
+          return updatedZone;
+
+        } catch (error:any) {
+            console.error(`Failed to assign locality to zone: ${error.message}`)
+            throw new Error(`Failed to assign locality to zone`);
+        }
+      }
+
+      async removeLocalityFromZone(zoneId: number) {
+        try {
+        // Проверяем, существует ли Zone
+        const zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+        if (!zone) {
+            throw new Error('Zone not found');
+        }
+    
+        // Обновляем запись Zone, убирая localityId
+        const updatedZone = await prisma.zone.update({
+            where: { id: zoneId },
+            data: { localityId: null },
+        });
+    
+        return updatedZone;
+        } catch (error:any) {
+        throw new Error(`Failed to remove locality from zone: ${error.message}`);
+        }
+    }
 }
+
+    
 
 export default new ZoneService();

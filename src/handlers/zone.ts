@@ -111,3 +111,35 @@ export async function deleteZoneById(req: Request<{ id: string }>, res: Response
         res.status(500).json({ error: 'Failed to delete zone' });
     }
 }
+
+export async function assignLocality(req: Request, res: Response) {
+
+    const zoneId = parseInt(req.params.zoneId, 10);
+    const localityId = parseInt(req.params.localityId, 10);
+  
+    if (isNaN(zoneId) || isNaN(zoneId)) {
+      res.status(400).json({ error: 'zoneId and localityId are required' });
+    }
+    
+    try {
+      const updatedZone = await ZoneService.assignLocalityToZone(zoneId, localityId);
+      res.status(200).json(updatedZone);
+    } catch (error:any) {
+      res.status(500).json({ error: 'Failed to assign locality' });
+    }
+}
+
+export async function removeLocality(req: Request, res: Response) {
+    const zoneId = parseInt(req.params.zoneId, 10);
+  
+    if (isNaN(zoneId)) {
+      res.status(400).json({ error: 'zoneId is required' });
+    }
+  
+    try {
+      const updatedZone = await ZoneService.removeLocalityFromZone(Number(zoneId));
+      res.status(200).json(updatedZone);
+    } catch (error:any) {
+        res.status(500).json({ error: 'Failed error remove locality in zone' });
+    }
+  }

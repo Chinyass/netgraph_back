@@ -59,8 +59,8 @@ class LocationService {
                     return null;
                 }
             }
-            console.error("Error updating node:", error);
-            throw new Error("Failed to update node");
+            console.error("Error updating location:", error);
+            throw new Error("Failed to update location");
         }
     }
 

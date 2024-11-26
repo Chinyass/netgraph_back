@@ -16,6 +16,7 @@ export async function getNodes(req: Request<{}, any, any, { [key: string]: strin
           address: req.query.address,
           ip: req.query.ip
       };
+      console.log(filters)
 
       const { nodes, total_count } = await NodeService.getAllNodes(take, skip, filters);
 

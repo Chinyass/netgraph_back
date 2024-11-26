@@ -57,7 +57,15 @@ model Zone {
   id Int @id @default(autoincrement())
   code String @unique
   name String @unique
+  localityId Int?
+  locality Locality? @relation(fields: [localityId], references: [id])
   nodes Node[]
+}
+
+model Locality {
+  id Int @id @default(autoincrement())
+  name        String @unique
+  zones Zone[]
 }
 
 model Role {

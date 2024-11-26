@@ -22,7 +22,18 @@ class NodeService {
             // Например, фильтрация по имени узла
             if (filters.name) {
                 // Используем contains для поиска по подстроке (независимо от регистра)
-                whereCondition.name = { contains: filters.name, mode: 'insensitive' };
+                whereCondition.name = { contains: filters.name };
+            }
+
+            if (filters.ip) {
+                whereCondition.ip = {
+                  contains: filters.ip 
+                }
+            }
+            if (filters.address) {
+              whereCondition.address = {
+                contains: filters.address
+              }
             }
 
             // Выполняем параллельные запросы для получения узлов и общего количества
